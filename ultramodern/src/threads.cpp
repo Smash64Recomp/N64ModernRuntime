@@ -244,7 +244,7 @@ extern "C" void osStartThread(RDRAM_ARG PTR(OSThread) t_) {
     else {
         t->state = OSThreadState::QUEUED;
         resume_thread(t);
-        //throw ultramodern::thread_terminated{};
+        throw ultramodern::thread_terminated{};
     }
 }
 

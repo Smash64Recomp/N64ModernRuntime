@@ -1,8 +1,12 @@
 #include <cassert>
+#include <mutex>
 
 #include "ultramodern/ultramodern.hpp"
 
 static PTR(OSThread) running_queue_impl = NULLPTR;
+// The handoff between threads signals the next thread before the current one blocks, so two
+// real OS threads can briefly touch these shared, intrusive linked lists at the same time.
+static std::mutex queue_mutex;
 
 static PTR(OSThread)* queue_to_ptr(RDRAM_ARG PTR(PTR(OSThread)) queue) {
     if (queue == ultramodern::running_queue) {
@@ -12,6 +16,7 @@ static PTR(OSThread)* queue_to_ptr(RDRAM_ARG PTR(PTR(OSThread)) queue) {
 }
 
 void ultramodern::thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) toadd_) {
+    std::lock_guard lock{queue_mutex};
     PTR(OSThread)* cur = queue_to_ptr(PASS_RDRAM queue_);
     OSThread* toadd = TO_PTR(OSThread, toadd_); 
     debug_printf("[Thread Queue] Inserting thread %d into queue 0x%08X\n", toadd->id, (uintptr_t)queue_);
@@ -32,6 +37,7 @@ void ultramodern::thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(O
 }
 
 PTR(OSThread) ultramodern::thread_queue_pop(RDRAM_ARG PTR(PTR(OSThread)) queue_) {
+    std::lock_guard lock{queue_mutex};
     PTR(OSThread)* queue = queue_to_ptr(PASS_RDRAM queue_);
     PTR(OSThread) ret = *queue;
     *queue = TO_PTR(OSThread, ret)->next;
@@ -41,6 +47,7 @@ PTR(OSThread) ultramodern::thread_queue_pop(RDRAM_ARG PTR(PTR(OSThread)) queue_)
 }
 
 bool ultramodern::thread_queue_remove(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) t_) {
+    std::lock_guard lock{queue_mutex};
     debug_printf("[Thread Queue] Removing thread %d from queue 0x%08X\n", TO_PTR(OSThread, t_)->id, (uintptr_t)queue_);
 
     PTR(PTR(OSThread)) cur = queue_;
@@ -57,11 +64,13 @@ bool ultramodern::thread_queue_remove(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(O
 }
 
 bool ultramodern::thread_queue_empty(RDRAM_ARG PTR(PTR(OSThread)) queue_) {
+    std::lock_guard lock{queue_mutex};
     PTR(OSThread)* queue = queue_to_ptr(PASS_RDRAM queue_);
     return *queue == NULLPTR;
 }
 
 PTR(OSThread) ultramodern::thread_queue_peek(RDRAM_ARG PTR(PTR(OSThread)) queue_) {
+    std::lock_guard lock{queue_mutex};
     PTR(OSThread)* queue = queue_to_ptr(PASS_RDRAM queue_);
     return *queue;
 }

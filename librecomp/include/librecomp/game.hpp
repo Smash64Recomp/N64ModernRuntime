@@ -19,6 +19,7 @@ namespace recomp {
     };
 
     struct GameEntry {
+        std::string discovery_url;
         uint64_t rom_hash;
         std::string internal_name;
         std::string display_name;
